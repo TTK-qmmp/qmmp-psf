@@ -43,25 +43,26 @@ DecoderProperties DecoderPSFFactory::properties() const
     return properties;
 }
 
-Decoder *DecoderPSFFactory::create(const QString &path, QIODevice *)
+Decoder *DecoderPSFFactory::create(const QString &path, QIODevice *input)
 {
+    Q_UNUSED(input);
     return new DecoderPSF(path);
 }
 
-QList<TrackInfo *> DecoderPSFFactory::createPlayList(const QString &path, TrackInfo::Parts parts, QStringList *)
+QList<TrackInfo*> DecoderPSFFactory::createPlayList(const QString &path, TrackInfo::Parts parts, QStringList *)
 {
     TrackInfo *info = new TrackInfo(path);
 
-    if(parts == TrackInfo::NoParts)
+    if(parts == TrackInfo::Parts())
     {
-        return QList<TrackInfo *>() << info;
+        return QList<TrackInfo*>() << info;
     }
 
     PSFHelper helper(path);
     if(!helper.initialize())
     {
         delete info;
-        return QList<TrackInfo *>();
+        return QList<TrackInfo*>();
     }
 
     if(parts & TrackInfo::MetaData)
@@ -79,13 +80,15 @@ QList<TrackInfo *> DecoderPSFFactory::createPlayList(const QString &path, TrackI
         info->setValue(Qmmp::SAMPLERATE, helper.samplerate());
         info->setValue(Qmmp::CHANNELS, helper.channels());
         info->setValue(Qmmp::BITS_PER_SAMPLE, helper.bitsPerSample());
+        info->setValue(Qmmp::FORMAT_NAME, "psf");
         info->setDuration(helper.totalTime());
     }
 
-    return QList<TrackInfo *>() << info;
+    return QList<TrackInfo*>() << info;
 }
 
-MetaDataModel* DecoderPSFFactory::createMetaDataModel(const QString &path, bool)
+MetaDataModel* DecoderPSFFactory::createMetaDataModel(const QString &path, bool readOnly)
 {
+    Q_UNUSED(readOnly);
     return new PSFMetaDataModel(path);
 }
