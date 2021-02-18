@@ -1,6 +1,6 @@
 /* =================================================
  * This file is part of the TTK qmmp plugin project
- * Copyright (C) 2015 - 2020 Greedysky Studio
+ * Copyright (C) 2015 - 2021 Greedysky Studio
 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ class PSFHelper;
 class DecoderPSF : public Decoder
 {
 public:
-    DecoderPSF(const QString &path);
+    explicit DecoderPSF(const QString &path);
     virtual ~DecoderPSF();
 
     // Standard Decoder API
@@ -41,6 +41,7 @@ public:
 
 private:
     PSFHelper* m_psf;
+
 };
 
 #endif // DECODER_PSF_H

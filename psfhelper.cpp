@@ -1,21 +1,3 @@
-/* =================================================
- * This file is part of the TTK qmmp plugin project
- * Copyright (C) 2015 - 2020 Greedysky Studio
-
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License along
- * with this program; If not, see <http://www.gnu.org/licenses/>.
- ================================================= */
-
 #include "psfhelper.h"
 
 extern "C" {
@@ -47,8 +29,8 @@ void psfplug_add_meta(QVariantMap &data, const char *key, const char *value)
 
 
 PSFHelper::PSFHelper(const QString &path)
+    : m_path(path)
 {
-    m_path = path;
     m_info = (psf_info_t*)calloc(sizeof(psf_info_t), 1);
 }
 
@@ -61,10 +43,11 @@ void PSFHelper::close()
 {
     if(m_info) 
     {
-        if(m_info->type >= 0)
+        if(m_info->decoder && m_info->type >= 0)
         {
             ao_stop(m_info->type, m_info->decoder);
         }
+
         if(m_info->filebuffer)
         {
             free(m_info->filebuffer);
@@ -76,9 +59,10 @@ void PSFHelper::close()
 
 bool PSFHelper::initialize()
 {
-    FILE *file = stdio_open(m_path.toLocal8Bit().constData());
+    FILE *file = stdio_open(qPrintable(m_path));
     if(!file)
     {
+        qWarning("PSFHelper: open file failed");
         return false;
     }
 
@@ -86,12 +70,14 @@ bool PSFHelper::initialize()
     m_info->filebuffer = (char *)malloc(m_info->filesize);
     if(!m_info->filebuffer)
     {
+        qWarning("PSFHelper: file size invalid");
         stdio_close(file);
         return false;
     }
 
     if(stdio_read(m_info->filebuffer, 1, m_info->filesize, file) != m_info->filesize)
     {
+        qWarning("PSFHelper: file data read error");
         stdio_close(file);
         return false;
     }
@@ -100,12 +86,14 @@ bool PSFHelper::initialize()
     m_info->type = ao_identify(m_info->filebuffer);
     if(m_info->type < 0)
     {
+        qWarning("PSFHelper: ao_identify error");
         return false;
     }
 
-    m_info->decoder = ao_start(m_info->type, m_path.toLocal8Bit().constData(), (uint8 *)m_info->filebuffer, m_info->filesize);
+    m_info->decoder = ao_start(m_info->type, qPrintable(m_path), (uint8 *)m_info->filebuffer, m_info->filesize);
     if(!m_info->decoder)
     {
+        qWarning("PSFHelper: ao_start error");
         return false;
     }
 
@@ -120,6 +108,7 @@ bool PSFHelper::initialize()
     m_info->duration = 120;
     if(!have_info)
     {
+        qDebug("PSFHelper: ao has no display info");
         return true;
     }
 
@@ -150,20 +139,18 @@ int PSFHelper::totalTime() const
 
 void PSFHelper::seek(qint64 time)
 {
-    const int sample = time * samplerate();
+    const int sample = time * sampleRate() / 1000;
     if(sample > m_info->currentsample)
     {
         m_info->samples_to_skip = sample - m_info->currentsample;
     }
     else
     {
-        // restart song
         ao_command(m_info->type, m_info->decoder, COMMAND_RESTART, 0);
         m_info->samples_to_skip = sample;
     }
 
     m_info->currentsample = sample;
-    m_info->readpos = (float)sample / samplerate();
 }
 
 int PSFHelper::bitrate() const
@@ -171,7 +158,7 @@ int PSFHelper::bitrate() const
     return m_info->filesize * 8.0 / totalTime();
 }
 
-int PSFHelper::samplerate() const
+int PSFHelper::sampleRate() const
 {
     return 44100;
 }
@@ -188,7 +175,7 @@ int PSFHelper::bitsPerSample() const
 
 int PSFHelper::read(unsigned char *buf, int size)
 {
-    if(m_info->currentsample >= m_info->duration * samplerate())
+    if(m_info->currentsample >= m_info->duration * sampleRate())
     {
         return 0;
     }
@@ -230,7 +217,6 @@ int PSFHelper::read(unsigned char *buf, int size)
     }
 
     m_info->currentsample += (initsize - size) / (channels() * bitsPerSample() / 8);
-    m_info->readpos = (float)m_info->currentsample / samplerate();
     return initsize - size;
 }
 
@@ -260,29 +246,29 @@ QVariantMap PSFHelper::readMetaTags()
         {
             psfplug_add_meta(m_meta, "title", info.info[i]);
         }
-        else if (!strncasecmp(info.title[i], "Game: ", 6))
+        else if(!strncasecmp(info.title[i], "Game: ", 6))
         {
             psfplug_add_meta(m_meta, "album", info.info[i]);
         }
-        else if (!strncasecmp(info.title[i], "Artist: ", 8))
+        else if(!strncasecmp(info.title[i], "Artist: ", 8))
         {
             psfplug_add_meta(m_meta, "artist", info.info[i]);
         }
-        else if (!strncasecmp(info.title[i], "Copyright: ", 11))
+        else if(!strncasecmp(info.title[i], "Copyright: ", 11))
         {
             psfplug_add_meta(m_meta, "copyright", info.info[i]);
         }
-        else if (!strncasecmp(info.title[i], "Year: ", 6))
+        else if(!strncasecmp(info.title[i], "Year: ", 6))
         {
             psfplug_add_meta(m_meta, "year", info.info[i]);
         }
-        else if (!strncasecmp(info.title[i], "Fade: ", 6))
+        else if(!strncasecmp(info.title[i], "Fade: ", 6))
         {
             psfplug_add_meta(m_meta, "fade", info.info[i]);
         }
         else
         {
-            char *colon = strchr (info.title[i], ':');
+            char *colon = strchr(info.title[i], ':');
             char name[colon - info.title[i] + 1];
             memcpy(name, info.title[i], colon - info.title[i]);
             name[colon - info.title[i]] = 0;

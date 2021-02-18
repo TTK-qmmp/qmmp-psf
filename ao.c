@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stdio_file.h"
 #include "ao.h"
 #include "eng_protos.h"
 
@@ -60,139 +59,34 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 	uint32 size;
     FILE *auxfile;
 
-        auxfile = stdio_open(filename);
+        auxfile = fopen(filename, "rb");
 	if (!auxfile)
 	{
 		fprintf(stderr, "Unable to find auxiliary file %s\n", filename);
 		return AO_FAIL;
 	}
 
-        stdio_seek(auxfile, 0, SEEK_END);
-        size = stdio_tell(auxfile);
-        stdio_seek(auxfile, 0, SEEK_SET);
+        fseek(auxfile, 0, SEEK_END);
+        size = ftell(auxfile);
+        fseek(auxfile, 0, SEEK_SET);
 
 	filebuf = malloc(size);
 
 	if (!filebuf)
 	{
-                stdio_close(auxfile);
+        fclose(auxfile);
 		printf("ERROR: could not allocate %d bytes of memory\n", size);
 		return AO_FAIL;
 	}
 
-        stdio_read(filebuf, size, 1, auxfile);
-        stdio_close(auxfile);
+        fread(filebuf, size, 1, auxfile);
+        fclose(auxfile);
 
 	*buffer = filebuf;
 	*length = (uint64)size;
 
 	return AO_SUCCESS;
 }
-
-#if 0
-/* file types */
-static uint32 type;
-
-static void do_frame(uint32 size, int16 *buffer)
-{
-	(*types[type].gen)(buffer, size);
-}
-
-int main(int argv, char *argc[])
-{
-	FILE *file;
-	uint8 *buffer;
-	uint32 size, filesig;
-
-	printf("AOSDK test program v1.0 by R. Belmont [AOSDK release 1.4.8]\nCopyright (c) 2007-2009 R. Belmont and Richard Bannister - please read license.txt for license details\n\n");
-
-	// check if an argument was given
-	if (argv < 2)
-	{
-		printf("Error: must specify a filename!\n");
-		return -1;
-	}	
-
-	file = fopen(argc[1], "rb");
-
-	if (!file)
-	{
-		printf("ERROR: could not open file %s\n", argc[1]);
-		return -1;
-	}
-
-	// get the length of the file by seeking to the end then reading the current position
-	fseek(file, 0, SEEK_END);
-	size = ftell(file);
-	// reset the pointer
-	fseek(file, 0, SEEK_SET);
-
-	buffer = malloc(size);
-
-	if (!buffer)
-	{
-		fclose(file);
-		printf("ERROR: could not allocate %d bytes of memory\n", size);
-		return -1;
-	}
-
-	// read the file
-	fread(buffer, size, 1, file);
-	fclose(file);
-
-	// now try to identify the file
-	type = 0;
-	filesig = buffer[0]<<24 | buffer[1]<<16 | buffer[2]<<8 | buffer[3];
-	while (types[type].sig != 0xffffffff)
-	{
-		if (filesig == types[type].sig)
-		{
-			break;
-		}
-		else
-		{
-			type++;
-		}
-	}
-
-	// now did we identify it above or just fall through?
-	if (types[type].sig != 0xffffffff)
-	{
-		printf("File identified as %s\n", types[type].name);
-	}
-	else
-	{
-		printf("ERROR: File is unknown, signature bytes are %02x %02x %02x %02x\n", buffer[0], buffer[1], buffer[2], buffer[3]);
-		free(buffer);
-		return -1;
-	}
-
-    void *handle = (*types[type].start)(argc[1], buffer, size);
-
-	if (!handle)
-	{
-		free(buffer);
-		printf("ERROR: Engine rejected file!\n");
-		return -1;
-	}
-	
-#if 0
-	m1sdr_Init(44100);
-	m1sdr_SetCallback(do_frame);
-	m1sdr_PlayStart();
-
-	printf("\n\nPlaying.  Press CTRL-C to stop.\n");
-
-	while (1)
-	{
-		m1sdr_TimeCheck();
-	}		
-#endif
-	free(buffer);
-
-	return 1;
-}
-#endif
 
 // stub for MAME stuff
 int change_pc(int foo)
@@ -256,3 +150,21 @@ int
 ao_command (uint32 type, void *handle, int32 command, int32 param) {
 	return (*types[type].command)(handle, command, param);
 }
+
+void
+ao_getlibpath (const char *path, const char *libname, char *libpath) {
+    const char *e = strrchr (path, 0x5C); // '\'
+    if (!e) {
+        e = strrchr (path, 0x2F); // '/'
+    }
+    if (e) {
+        e++;
+        memcpy (libpath, path, e-path);
+        libpath[e-path] = 0;
+        strcat (libpath, libname);
+    }
+    else {
+        strcpy (libpath, libname);
+    }
+}
+

@@ -121,11 +121,11 @@ void *ssf_start(const char *path, uint8 *buffer, uint32 length)
 			uint64 tmp_length;
 	
             char libpath[PATH_MAX];
-            ao_getlibpath (path, s->c->lib, libpath, sizeof (libpath));
+            ao_getlibpath (path, s->c->lib, libpath);
 			#if DEBUG_LOADER	
 			printf("Loading library: %s\n", c->lib);
 			#endif
-			if (ao_get_lib(libfile, &lib_raw_file, &tmp_length) != AO_SUCCESS)
+            if (ao_get_lib(libpath, &lib_raw_file, &tmp_length) != AO_SUCCESS)
 			{
                 ssf_stop (s);
                 return NULL;
