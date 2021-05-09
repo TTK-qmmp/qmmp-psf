@@ -20,8 +20,8 @@ bool DecoderPSF::initialize()
         return false;
     }
 
-    int rate = m_psf->sampleRate();
-    int channels = m_psf->channels();
+    const int rate = m_psf->sampleRate();
+    const int channels = m_psf->channels();
     if(rate == 0 || channels == 0)
     {
         qWarning("DecoderPSF: rate or channel invalid");
@@ -29,7 +29,7 @@ bool DecoderPSF::initialize()
     }
 
     configure(rate, channels, Qmmp::PCM_S16LE);
-
+    qDebug("DecoderPSF: initialize succes");
     return true;
 }
 
