@@ -29,11 +29,10 @@ typedef struct {
     size_t filesize;
     char buffer[735 * 4]; // psf2 decoder only works with 735 samples buffer
     int remaining;
-    float duration;
-
+    int length;
     int currentsample;
     int samples_to_skip;
-} psf_info_t;
+} psf_info;
 
 /*!
  * @author Greedysky <greedysky@163.com>
@@ -65,7 +64,7 @@ public:
 
 private:
     QString m_path;
-    psf_info_t *m_info;
+    psf_info *m_info;
     QMap<QString, QString> m_meta;
 
 };
