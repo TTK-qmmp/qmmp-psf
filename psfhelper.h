@@ -20,12 +20,12 @@
 #define PSFHELPER_H
 
 #include <QMap>
-#include <QString>
+#include <QFile>
+#include <qmmp/qmmp.h>
 
 typedef struct {
     int type;
     void *decoder;
-    char *filebuffer;
     size_t filesize;
     char buffer[735 * 4]; // psf2 decoder only works with 735 samples buffer
     int remaining;
@@ -43,7 +43,7 @@ public:
     explicit PSFHelper(const QString &path);
     virtual ~PSFHelper();
 
-    void close();
+    void deinit();
 
     bool initialize();
     int totalTime() const;
@@ -55,17 +55,11 @@ public:
     int bitsPerSample() const;
 
     int read(unsigned char *buf, int size);
-    QMap<QString, QString> readMetaTags();
-
-    inline QString title() const { return m_meta.value("title"); }
-    inline QString artist() const { return m_meta.value("artist"); }
-    inline QString album() const { return m_meta.value("album"); }
-    inline QString year() const { return m_meta.value("year"); }
+    QMap<Qmmp::MetaData, QString> readMetaData() const;
 
 private:
     QString m_path;
     psf_info *m_info;
-    QMap<QString, QString> m_meta;
 
 };
 

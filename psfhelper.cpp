@@ -2,7 +2,6 @@
 
 extern "C" {
 #include "ao.h"
-#include "stdio_file.h"
 }
 
 PSFHelper::PSFHelper(const QString &path)
@@ -13,10 +12,10 @@ PSFHelper::PSFHelper(const QString &path)
 
 PSFHelper::~PSFHelper()
 {
-    close();
+    deinit();
 }
 
-void PSFHelper::close()
+void PSFHelper::deinit()
 {
     if(m_info) 
     {
@@ -24,50 +23,30 @@ void PSFHelper::close()
         {
             ao_stop(m_info->type, m_info->decoder);
         }
-
-        if(m_info->filebuffer)
-        {
-            free(m_info->filebuffer);
-            m_info->filebuffer = nullptr;
-        }
         free(m_info);
     }
 }
 
 bool PSFHelper::initialize()
 {
-    FILE *file = stdio_open(qPrintable(m_path));
-    if(!file)
+    QFile file(m_path);
+    if(!file.open(QFile::ReadOnly))
     {
         qWarning("PSFHelper: open file failed");
         return false;
     }
 
-    m_info->filesize = stdio_length(file);
-    m_info->filebuffer = (char *)malloc(m_info->filesize);
-    if(!m_info->filebuffer)
-    {
-        qWarning("PSFHelper: file size invalid");
-        stdio_close(file);
-        return false;
-    }
+    m_info->filesize = file.size();
+    const QByteArray module = file.readAll();
 
-    if(stdio_read(m_info->filebuffer, 1, m_info->filesize, file) != m_info->filesize)
-    {
-        qWarning("PSFHelper: file data read error");
-        stdio_close(file);
-        return false;
-    }
-    stdio_close(file);
-
-    m_info->type = ao_identify(m_info->filebuffer);
+    m_info->type = ao_identify((char *)module.constData());
     if(m_info->type < 0)
     {
         qWarning("PSFHelper: ao_identify error");
         return false;
     }
 
-    m_info->decoder = ao_start(m_info->type, qPrintable(m_path), (uint8 *)m_info->filebuffer, m_info->filesize);
+    m_info->decoder = ao_start(m_info->type, qPrintable(m_path), (uint8 *)module.constData(), m_info->filesize);
     if(!m_info->decoder)
     {
         qWarning("PSFHelper: ao_start error");
@@ -164,7 +143,7 @@ int PSFHelper::read(unsigned char *buf, int size)
         {
             if(m_info->samples_to_skip > 0)
             {
-                int n = MIN(m_info->samples_to_skip, m_info->remaining);
+                int n = std::min<int>(m_info->samples_to_skip, m_info->remaining);
                 if(m_info->remaining > n)
                 {
                     memmove(m_info->buffer, m_info->buffer + n * 4, (m_info->remaining - n) * 4);
@@ -175,7 +154,7 @@ int PSFHelper::read(unsigned char *buf, int size)
             }
 
             int n = size / 4;
-            n = MIN(m_info->remaining, n);
+            n = std::min<int>(m_info->remaining, n);
             memcpy(buf, m_info->buffer, n * 4);
             if(m_info->remaining > n)
             {
@@ -197,11 +176,12 @@ int PSFHelper::read(unsigned char *buf, int size)
     return initsize - size;
 }
 
-QMap<QString, QString> PSFHelper::readMetaTags()
+QMap<Qmmp::MetaData, QString> PSFHelper::readMetaData() const
 {
+    QMap<Qmmp::MetaData, QString> metaData;
     if(m_info->type < 0 || !m_info->decoder)
     {
-        return m_meta;
+        return metaData;
     }
 
     ao_display_info info;
@@ -214,34 +194,34 @@ QMap<QString, QString> PSFHelper::readMetaTags()
 
     if(have_info)
     {
-        return m_meta;
+        return metaData;
     }
 
     for(int i = 1; i < 9; i++)
     {
         if(!strncasecmp(info.title[i], "Name: ", 6) || !strncasecmp(info.title[i], "Song: ", 6))
         {
-            m_meta.insert("title", info.info[i]);
+            metaData.insert(Qmmp::TITLE, info.info[i]);
         }
         else if(!strncasecmp(info.title[i], "Game: ", 6))
         {
-            m_meta.insert("album", info.info[i]);
+            metaData.insert(Qmmp::ALBUM, info.info[i]);
         }
         else if(!strncasecmp(info.title[i], "Artist: ", 8))
         {
-            m_meta.insert("artist", info.info[i]);
+            metaData.insert(Qmmp::ARTIST, info.info[i]);
         }
         else if(!strncasecmp(info.title[i], "Copyright: ", 11))
         {
-            m_meta.insert("copyright", info.info[i]);
+            metaData.insert(Qmmp::COMPOSER, info.info[i]);
         }
         else if(!strncasecmp(info.title[i], "Year: ", 6))
         {
-            m_meta.insert("year", info.info[i]);
+            metaData.insert(Qmmp::YEAR, info.info[i]);
         }
         else if(!strncasecmp(info.title[i], "Fade: ", 6))
         {
-            m_meta.insert("fade", info.info[i]);
+            // do nothing
         }
         else
         {
@@ -249,9 +229,9 @@ QMap<QString, QString> PSFHelper::readMetaTags()
             char name[colon - info.title[i] + 1];
             memcpy(name, info.title[i], colon - info.title[i]);
             name[colon - info.title[i]] = 0;
-            m_meta.insert(name, info.info[i]);
+            metaData.insert(Qmmp::COMMENT, info.info[i]);
         }
     }
 
-    return m_meta;
+    return metaData;
 }
