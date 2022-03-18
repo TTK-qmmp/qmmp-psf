@@ -20,8 +20,12 @@
 #define PSFMETADATAMODEL_H
 
 #include <qmmp/metadatamodel.h>
-#include "psfhelper.h"
 
+class PSFHelper;
+
+/*!
+ * @author Greedysky <greedysky@163.com>
+ */
 class PSFMetaDataModel : public MetaDataModel
 {
     Q_DECLARE_TR_FUNCTIONS(PSFMetaDataModel)
@@ -29,8 +33,8 @@ public:
     explicit PSFMetaDataModel(const QString &path);
     virtual ~PSFMetaDataModel();
 
-    virtual QList<TagModel*> tags() const override;
-    virtual QList<MetaDataItem> extraProperties() const override;
+    virtual QList<TagModel*> tags() const override final;
+    virtual QList<MetaDataItem> extraProperties() const override final;
 
 private:
     QList<TagModel*> m_tags;
@@ -38,16 +42,19 @@ private:
 
 };
 
+/*!
+ * @author Greedysky <greedysky@163.com>
+ */
 class PSFFileTagModel : public TagModel
 {
 public:
     explicit PSFFileTagModel(PSFHelper* psf);
     virtual ~PSFFileTagModel();
 
-    virtual QString name() const override;
-    virtual QList<Qmmp::MetaData> keys() const override;
-    virtual QString value(Qmmp::MetaData key) const override;
-    virtual void setValue(Qmmp::MetaData key, const QString &value) override;
+    virtual QString name() const override final;
+    virtual QList<Qmmp::MetaData> keys() const override final;
+    virtual QString value(Qmmp::MetaData key) const override final;
+    virtual void setValue(Qmmp::MetaData key, const QString &value) override final;
 
 private:
     PSFHelper *m_helper = nullptr;

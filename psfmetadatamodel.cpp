@@ -1,4 +1,5 @@
 #include "psfmetadatamodel.h"
+#include "psfhelper.h"
 
 PSFMetaDataModel::PSFMetaDataModel(const QString &path)
     : MetaDataModel(true)
@@ -9,8 +10,7 @@ PSFMetaDataModel::PSFMetaDataModel(const QString &path)
 
 PSFMetaDataModel::~PSFMetaDataModel()
 {
-    while(!m_tags.isEmpty())
-        delete m_tags.takeFirst();
+    qDeleteAll(m_tags);
     delete m_helper;
 }
 
@@ -29,7 +29,6 @@ QList<MetaDataItem> PSFMetaDataModel::extraProperties() const
         ep << MetaDataItem("Copyright", data[Qmmp::COMPOSER]);
         ep << MetaDataItem("Comment", data[Qmmp::COMMENT]);
     }
-
     return ep;
 }
 
