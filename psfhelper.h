@@ -30,7 +30,7 @@ class PSFHelper
 {
 public:
     explicit PSFHelper(const QString &path);
-    virtual ~PSFHelper();
+     ~PSFHelper();
 
     void deinit();
     bool initialize();
@@ -38,24 +38,26 @@ public:
     void seek(qint64 time);
     inline qint64 totalTime() const { return m_length * 1000; }
 
-    inline int bitrate() const { return m_file_size * 8.0 / totalTime() + 1.0f; }
+    inline int bitrate() const { return 8; }
     inline int sampleRate() const { return 44100; }
     inline int channels() const { return 2; }
     inline int depth() const { return 16; }
 
     qint64 read(unsigned char *data, qint64 maxSize);
-    QMap<Qmmp::MetaData, QString> readMetaData() const;
+
+    inline bool hasTags() const { return !m_tags.isEmpty(); }
+    inline QString tag(const char *key) const { return m_tags[key]; }
 
 private:
     QString m_path;
     int m_type = 0;
     void *m_input = nullptr;
-    size_t m_file_size = 0;
     char m_buffer[735 * 4] = {0}; // psf2 decoder only works with 735 samples buffer
     int m_remaining = 0;
     int m_length = 0;
     int m_current_sample = 0;
     int m_samples_to_skip = 0;
+    QMap<QString, QString> m_tags;
 
 };
 

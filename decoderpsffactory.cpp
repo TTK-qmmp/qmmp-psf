@@ -5,9 +5,16 @@
 
 #include <QMessageBox>
 
-bool DecoderPSFFactory::canDecode(QIODevice *) const
+bool DecoderPSFFactory::canDecode(QIODevice *input) const
 {
-    return false;
+    QFile *file = static_cast<QFile*>(input);
+    if(!file)
+    {
+        return false;
+    }
+
+    PSFHelper helper(file->fileName());
+    return helper.initialize();
 }
 
 DecoderProperties DecoderPSFFactory::properties() const
@@ -21,6 +28,7 @@ DecoderProperties DecoderPSFFactory::properties() const
     properties.filters << "*.dsf" << "*.minidsf";
     properties.filters << "*.spu";
     properties.description = "Audio Overload File";
+    properties.protocols << "file";
     properties.noInput = true;
     return properties;
 }
@@ -46,13 +54,11 @@ QList<TrackInfo*> DecoderPSFFactory::createPlayList(const QString &path, TrackIn
         return QList<TrackInfo*>();
     }
 
-    if(parts & TrackInfo::MetaData)
+    if((parts & TrackInfo::MetaData) && helper.hasTags())
     {
-        const QMap<Qmmp::MetaData, QString> metaData(helper.readMetaData());
-        for(auto itr = metaData.begin(); itr != metaData.end(); ++itr)
-        {
-            info->setValue(itr.key(), itr.value());
-        }
+        info->setValue(Qmmp::TITLE, helper.tag("title"));
+        info->setValue(Qmmp::ARTIST, helper.tag("artist"));
+        info->setValue(Qmmp::YEAR, helper.tag("year"));
     }
 
     if(parts & TrackInfo::Properties)
@@ -61,7 +67,7 @@ QList<TrackInfo*> DecoderPSFFactory::createPlayList(const QString &path, TrackIn
         info->setValue(Qmmp::SAMPLERATE, helper.sampleRate());
         info->setValue(Qmmp::CHANNELS, helper.channels());
         info->setValue(Qmmp::BITS_PER_SAMPLE, helper.depth());
-        info->setValue(Qmmp::FORMAT_NAME, "PSF");
+        info->setValue(Qmmp::FORMAT_NAME, "Overload PSF");
         info->setDuration(helper.totalTime());
     }
     return QList<TrackInfo*>() << info;
