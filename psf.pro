@@ -64,5 +64,4 @@ INCLUDEPATH += $$PWD/libpsf
 unix {
     target.path = $$PLUGIN_DIR/Input
     INSTALLS += target
-    QMAKE_CLEAN = $$PLUGINS_PREFIX/Input/libpsf.so
 }
