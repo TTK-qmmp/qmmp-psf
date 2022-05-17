@@ -30,6 +30,7 @@ DecoderProperties DecoderPSFFactory::properties() const
     properties.description = "Audio Overload File";
     properties.protocols << "file";
     properties.noInput = true;
+    properties.hasAbout = true;
     return properties;
 }
 
