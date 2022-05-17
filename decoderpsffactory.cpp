@@ -86,9 +86,9 @@ void DecoderPSFFactory::showSettings(QWidget *parent)
 
 void DecoderPSFFactory::showAbout(QWidget *parent)
 {
-    QMessageBox::about (parent, tr("About PSF Reader Plugin"),
-                        tr("Qmmp PSF Reader Plugin")+"\n"+
-                        tr("Written by: Greedysky <greedysky@163.com>"));
+    QMessageBox::about(parent, tr("About PSF Reader Plugin"),
+                       tr("Qmmp PSF Reader Plugin") + "\n" +
+                       tr("Written by: Greedysky <greedysky@163.com>"));
 }
 
 QString DecoderPSFFactory::translation() const
