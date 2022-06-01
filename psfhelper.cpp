@@ -21,6 +21,7 @@ void PSFHelper::deinit()
     {
         ao_stop(m_type, m_input);
     }
+    delete[] m_data;
 }
 
 bool PSFHelper::initialize()
@@ -33,17 +34,18 @@ bool PSFHelper::initialize()
     }
 
     const qint64 size = file.size();
-    const QByteArray &module = file.readAll();
+    m_data = new char[size]{0};
+    file.read(m_data, size);
     file.close();
 
-    m_type = ao_identify((char *)module.constData());
+    m_type = ao_identify(m_data);
     if(m_type < 0)
     {
         qWarning("PSFHelper: ao_identify error");
         return false;
     }
 
-    m_input = ao_start(m_type, qPrintable(m_path), (uint8 *)module.constData(), size);
+    m_input = ao_start(m_type, qPrintable(m_path), (uint8 *)m_data, size);
     if(!m_input)
     {
         qWarning("PSFHelper: unable to open file");
@@ -112,10 +114,13 @@ bool PSFHelper::initialize()
         else
         {
             const char *colon = strchr(info.title[i], ':');
-            char name[colon - info.title[i] + 1];
-            memcpy(name, info.title[i], colon - info.title[i]);
-            name[colon - info.title[i]] = 0;
-            m_tags.insert("title", info.info[i]);
+            if(colon)
+            {
+                char name[colon - info.title[i] + 1];
+                memcpy(name, info.title[i], colon - info.title[i]);
+                name[colon - info.title[i]] = 0;
+                m_tags.insert("title", info.info[i]);
+            }
         }
     }
     return true;

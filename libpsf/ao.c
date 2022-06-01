@@ -113,11 +113,7 @@ ao_identify (char *buffer) {
 	}
 
 	// now did we identify it above or just fall through?
-	if (types[type].sig != 0xffffffff)
-	{
-        printf ("psf: File identified as %s\n", types[type].name);
-	}
-	else
+    if (types[type].sig == 0xffffffff)
 	{
         printf ("psf: File is unknown, signature bytes are %02x %02x %02x %02x\n", buffer[0], buffer[1], buffer[2], buffer[3]);
 		return -1;
@@ -167,4 +163,3 @@ ao_getlibpath (const char *path, const char *libname, char *libpath) {
         strcpy (libpath, libname);
     }
 }
-

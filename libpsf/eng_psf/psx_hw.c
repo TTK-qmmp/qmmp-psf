@@ -58,12 +58,6 @@
 #define DEBUG_UNK_RW	(0)		// debug unknown reads/writes
 #define DEBUG_THREADING (0)		// debug PS2 IOP threading
 
-extern int psxcpu_verbose;
-
-uint32 psf2_get_loadaddr(void);
-void psf2_set_loadaddr(uint32 new);
-static void call_irq_routine(mips_cpu_context *cpu, uint32 routine, uint32 parameter);
-
 // thread states
 enum
 {
@@ -2111,14 +2105,14 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 					cpu->psx_ram[a0], cpu->psx_ram[a0+1], cpu->psx_ram[a0+2], cpu->psx_ram[a0+3], cpu->psx_ram[a0+4]);
 				#endif
 
-				newAlloc = psf2_get_loadaddr();
+                newAlloc = cpu->loadAddr;
 				// force 16-byte alignment
 				if (newAlloc & 0xf)
 				{
 					newAlloc &= ~0xf;
 					newAlloc += 16;
 				}
-				psf2_set_loadaddr(newAlloc + LE32(cpu->psx_ram[a0+3]));
+                cpu->loadAddr = newAlloc + LE32(cpu->psx_ram[a0+3]);
 				
 				cpu->threads[cpu->iNumThreads].iState = TS_CREATED;
 				cpu->threads[cpu->iNumThreads].stackloc = newAlloc;
@@ -2991,7 +2985,7 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 		switch (callnum)
 		{
 			case 4:	// AllocMemory
-				newAlloc = psf2_get_loadaddr();
+                newAlloc = cpu->loadAddr;
 				// make sure we're 16-byte aligned
 				if (newAlloc & 15)
 				{
@@ -3011,7 +3005,7 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 					newAlloc = 0x60000;
 				}
 
-				psf2_set_loadaddr(newAlloc + a1);
+                cpu->loadAddr = newAlloc + a1;
 
 				#if DEBUG_HLE_IOP
 				printf("IOP: AllocMemory(%d, %d, %x) = %08x\n", a0, a1, a2, newAlloc|0x80000000);
@@ -3032,7 +3026,7 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 				printf("IOP: QueryMaxFreeMemSize\n");
 				#endif
 
-				mipsinfo.i = (2*1024*1024) - psf2_get_loadaddr();
+                mipsinfo.i = (2*1024*1024) - cpu->loadAddr;
 				mips_set_info(cpu,CPUINFO_INT_REGISTER + MIPS_R2, &mipsinfo);
 				break;
 
@@ -3041,7 +3035,7 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 				printf("IOP: QueryTotalFreeMemSize\n");
 				#endif
 
-				mipsinfo.i = (2*1024*1024) - psf2_get_loadaddr();
+                mipsinfo.i = (2*1024*1024) - cpu->loadAddr;
 				mips_set_info(cpu,CPUINFO_INT_REGISTER + MIPS_R2, &mipsinfo);
 				break;
 
@@ -3106,14 +3100,14 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 				#endif
 
 				// get 2k for our parameters
-				newAlloc = psf2_get_loadaddr();
+                newAlloc = cpu->loadAddr;
 				// force 16-byte alignment
 				if (newAlloc & 0xf)
 				{
 					newAlloc &= ~0xf;
 					newAlloc += 16;
 				}
-				psf2_set_loadaddr(newAlloc + 2048);
+                cpu->loadAddr = newAlloc + 2048;
 
 				tempmem = (uint8 *)malloc(2*1024*1024);
 				if (psf2_load_file(cpu, mname, tempmem, 2*1024*1024) != 0xffffffff)
@@ -3369,16 +3363,6 @@ void psx_iop_call(mips_cpu_context *cpu, uint32 pc, uint32 callnum)
 							 callnum, 
 							 (uint32)mipsinfo.i, 
 							 a0, a1, a2, a3, PC);
-					#endif
-
-					#if 0
-					if (!strcmp(cpu->reglibs[lib].name, "ssd"))
-					{
-						if (callnum == 37)
-						{
-							psxcpu_verbose = 4096;
-						}
-					}
 					#endif
 
 					mipsinfo.i -= 4;

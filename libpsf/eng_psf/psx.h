@@ -99,6 +99,7 @@ typedef struct
 } Semaphore;
 
 #define SEMA_MAX	(64)
+#define MAX_FS		(32)	// maximum # of s->filesystems (libs and subdirectories)
 
 typedef struct
 {
@@ -205,6 +206,10 @@ typedef struct mips_cpu_context_s
     uint32 irq_regs[37];
     int irq_mutex;
 
+    uint32 loadAddr;
+    uint8 *filesys[MAX_FS];
+    uint32 fssize[MAX_FS];
+    int num_fs;
 } mips_cpu_context;
 
 union cpuinfo

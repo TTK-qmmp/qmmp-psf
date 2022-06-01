@@ -61,17 +61,10 @@
 #include "corlett.h"
 
 #define DEBUG_LOADER	(0)
-#define MAX_FS		(32)	// maximum # of s->filesystems (libs and subdirectories)
 
 // ELF relocation helpers
 #define ELF32_R_SYM(val)                ((val) >> 8)
 #define ELF32_R_TYPE(val)               ((val) & 0xff)
-
-// main RAM
-static uint32 loadAddr, lengthMS, fadeMS;
-static uint8 *filesys[MAX_FS];
-static uint32 fssize[MAX_FS];
-static int num_fs;
 
 typedef struct {
     corlett_t	*c;
@@ -81,6 +74,8 @@ typedef struct {
     uint8 *lib_raw_file;
     mips_cpu_context *mips_cpu;
     char		*spu_pOutput;
+    uint32 lengthMS;
+    uint32 fadeMS;
 } psf2_synth_t;
 
 void ps2_update(unsigned char *pSound, long lBytes, void *data)
@@ -133,14 +128,14 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 	int i, rec;
 //	FILE *f;
 
-	if (loadAddr & 3)
+    if (cpu->loadAddr & 3)
 	{
-		loadAddr &= ~3;
-		loadAddr += 4;
+        cpu->loadAddr &= ~3;
+        cpu->loadAddr += 4;
 	}
 
 	#if DEBUG_LOADER
-	printf("psf2_load_elf: starting at %08x\n", loadAddr | 0x80000000);
+    printf("psf2_load_elf: starting at %08x\n", cpu->loadAddr | 0x80000000);
 	#endif
 
 	if ((start[0] != 0x7f) || (start[1] != 'E') || (start[2] != 'L') || (start[3] != 'F'))
@@ -183,7 +178,7 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 				break;
 
 			case 1:			// PROGBITS: copy data to destination
-				memcpy(&cpu->psx_ram[(loadAddr + addr)/4], &start[offset], size);
+                memcpy(&cpu->psx_ram[(cpu->loadAddr + addr)/4], &start[offset], size);
 				totallen += size;
 				break;
 
@@ -194,7 +189,7 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 				break;
 
 			case 8:			// NOBITS: BSS region, zero out destination
-				memset(&cpu->psx_ram[(loadAddr + addr)/4], 0, size);
+                memset(&cpu->psx_ram[(cpu->loadAddr + addr)/4], 0, size);
 				totallen += size;
 				break;
 
@@ -206,21 +201,21 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 
 					offs = start[offset+(rec*8)] | start[offset+1+(rec*8)]<<8 | start[offset+2+(rec*8)]<<16 | start[offset+3+(rec*8)]<<24;
 					info = start[offset+4+(rec*8)] | start[offset+5+(rec*8)]<<8 | start[offset+6+(rec*8)]<<16 | start[offset+7+(rec*8)]<<24;
-					target = LE32(cpu->psx_ram[(loadAddr+offs)/4]);
+                    target = LE32(cpu->psx_ram[(cpu->loadAddr+offs)/4]);
 					
 //					printf("[%04d] offs %08x type %02x info %08x => %08x\n", rec, offs, ELF32_R_TYPE(info), ELF32_R_SYM(info), target);
 
 					switch (ELF32_R_TYPE(info))
 					{
 						case 2:	      	// R_MIPS_32
-							target += loadAddr;
+                            target += cpu->loadAddr;
 //							target |= 0x80000000;
 							break;
 
 						case 4:		// R_MIPS_26
 							temp = (target & 0x03ffffff);
 							target &= 0xfc000000;
-							temp += (loadAddr>>2);
+                            temp += (cpu->loadAddr>>2);
 							target |= temp;
 							break;
 
@@ -233,7 +228,7 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 							vallo = ((target & 0xffff) ^ 0x8000) - 0x8000;
 
 							val = ((hi16target & 0xffff) << 16) +	vallo;
-							val += loadAddr;
+                            val += cpu->loadAddr;
 //							val |= 0x80000000;
 
 							/* Account for the sign extension that will happen in the low bits.  */
@@ -242,10 +237,10 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 							hi16target = (hi16target & ~0xffff) | val;
 
 							/* Ok, we're done with the HI16 relocs.  Now deal with the LO16.  */
-							val = loadAddr + vallo;
+                            val = cpu->loadAddr + vallo;
 							target = (target & ~0xffff) | (val & 0xffff);
 
-							cpu->psx_ram[(loadAddr+hi16offs)/4] = LE32(hi16target);
+                            cpu->psx_ram[(cpu->loadAddr+hi16offs)/4] = LE32(hi16target);
 							break;
 
 						default:
@@ -254,7 +249,7 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 							break;
 					}
 
-					cpu->psx_ram[(loadAddr+offs)/4] = LE32(target);
+                    cpu->psx_ram[(cpu->loadAddr+offs)/4] = LE32(target);
 				}						
 				break;
 
@@ -272,9 +267,9 @@ uint32 psf2_load_elf(mips_cpu_context *cpu, uint8 *start, uint32 len)
 		shent += shentsize;
 	}	
 
-	entry += loadAddr;
+    entry += cpu->loadAddr;
 	entry |= 0x80000000;
-	loadAddr += totallen;
+    cpu->loadAddr += totallen;
 
 	#if DEBUG_LOADER
 	printf("psf2_load_elf: entry PC %08x\n", entry);
@@ -360,9 +355,9 @@ static uint32 load_file_ex(uint8 *top, uint8 *start, uint32 len, char *file, uin
 	return 0xffffffff;
 }
 
-static uint32 load_file(int fs, char *file, uint8 *buf, uint32 buflen)
+static uint32 load_file(mips_cpu_context *cpu, int fs, char *file, uint8 *buf, uint32 buflen)
 {
-	return load_file_ex(filesys[fs], filesys[fs], fssize[fs], file, buf, buflen);
+    return load_file_ex(cpu->filesys[fs], cpu->filesys[fs], cpu->fssize[fs], file, buf, buflen);
 }
 
 #if 0
@@ -444,9 +439,9 @@ uint32 psf2_load_file(mips_cpu_context *cpu, char *file, uint8 *buf, uint32 bufl
 	int i;
 	uint32 flen;
 
-	for (i = 0; i < num_fs; i++)
+    for (i = 0; i < cpu->num_fs; i++)
 	{
-		flen = load_file(i, file, buf, buflen);
+        flen = load_file(cpu, i, file, buf, buflen);
 		if (flen != 0xffffffff)
 		{
 			return flen;
@@ -468,8 +463,12 @@ void *psf2_start(const char *path, uint8 *buffer, uint32 length)
 	union cpuinfo mipsinfo;
 	corlett_t *lib = NULL;
 
-	loadAddr = 0x23f00;	// this value makes allocations work out similarly to how they would 
-				// in Highly Experimental (as per Shadow Hearts' hard-coded assumptions)
+    s->mips_cpu = mips_alloc ();
+    mips_init(s->mips_cpu);
+    mips_reset(s->mips_cpu, NULL);
+
+    s->mips_cpu->loadAddr = 0x23f00;	// this value makes allocations work out similarly to how they would
+    // in Highly Experimental (as per Shadow Hearts' hard-coded assumptions)
 
 	// Decode the current PSF2
 	if (corlett_decode(buffer, length, &file, &file_len, &s->c) != AO_SUCCESS)
@@ -488,9 +487,9 @@ void *psf2_start(const char *path, uint8 *buffer, uint32 length)
 	printf("FS section: size %x\n", s->c->res_size);
 	#endif
 
-	num_fs = 1;
-	filesys[0] = (uint8 *)s->c->res_section;
-	fssize[0] = s->c->res_size;
+    s->mips_cpu->num_fs = 1;
+    s->mips_cpu->filesys[0] = (uint8 *)s->c->res_section;
+    s->mips_cpu->fssize[0] = s->c->res_size;
 
 	// Get the library file, if any
 	if (s->c->lib[0] != 0)
@@ -520,9 +519,9 @@ void *psf2_start(const char *path, uint8 *buffer, uint32 length)
 		printf("Lib FS section: size %x bytes\n", lib->res_size);
 		#endif
 
-		num_fs++;
-		filesys[1] = (uint8 *)lib->res_section;
- 		fssize[1] = lib->res_size;
+        s->mips_cpu->num_fs++;
+        s->mips_cpu->filesys[1] = (uint8 *)lib->res_section;
+        s->mips_cpu->fssize[1] = lib->res_size;
  		free (lib);
  		lib = NULL;
 	}
@@ -535,10 +534,6 @@ void *psf2_start(const char *path, uint8 *buffer, uint32 length)
 		dump_files(1, buf, 16*1024*1024);
 	free(buf);
 	#endif
-
-	s->mips_cpu = mips_alloc ();
-	mips_init(s->mips_cpu);
-	mips_reset(s->mips_cpu, NULL);
 
 	// load psf2.irx, which kicks everything off
 	buf = (uint8 *)malloc(512*1024);
@@ -557,11 +552,11 @@ void *psf2_start(const char *path, uint8 *buffer, uint32 length)
         return NULL;
 	}
 
-	lengthMS = psfTimeToMS(s->c->inf_length);
-	fadeMS = psfTimeToMS(s->c->inf_fade);
-	if (lengthMS == 0) 
+    s->lengthMS = psfTimeToMS(s->c->inf_length);
+    s->fadeMS = psfTimeToMS(s->c->inf_fade);
+    if (s->lengthMS == 0)
 	{
-		lengthMS = ~0;
+        s->lengthMS = ~0;
 	}
 
 	mipsinfo.i = s->initialPC;
@@ -594,7 +589,7 @@ void *psf2_start(const char *path, uint8 *buffer, uint32 length)
 	psx_hw_init(s->mips_cpu);
 	SPU2init(s->mips_cpu, ps2_update, s);
 	SPU2open(s->mips_cpu, NULL);
-	setlength2(s->mips_cpu->spu2, lengthMS, fadeMS);
+    setlength2(s->mips_cpu->spu2, s->lengthMS, s->fadeMS);
 
 	return s;
 }
@@ -722,14 +717,4 @@ int32 psf2_fill_info(void *handle, ao_display_info *info)
 	sprintf(info->info[8], "%s", s->psfby);
 
 	return AO_SUCCESS;
-}
-
-uint32 psf2_get_loadaddr(void)
-{
-	return loadAddr;
-}
-
-void psf2_set_loadaddr(uint32 new)
-{
-	loadAddr = new;
 }

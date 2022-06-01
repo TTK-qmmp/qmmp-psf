@@ -383,8 +383,6 @@ void mips_shorten_frame(mips_cpu_context *cpu)
 
 void psx_hw_runcounters(mips_cpu_context *cpu);
 
-int psxcpu_verbose = 0;
-
 int mips_execute( mips_cpu_context *cpu, int cycles )
 {
 	UINT32 n_res;
@@ -413,13 +411,6 @@ int mips_execute( mips_cpu_context *cpu, int cycles )
 		{
 			cpu->prevpc = cpu->pc;
 		}	
-#endif
-#if 0
-		if (1) //psxcpu_verbose)
-		{
-			printf("[%08x: %08x] [SP %08x RA %08x V0 %08x V1 %08x A0 %08x S0 %08x S1 %08x]\n", cpu->pc, cpu->op, cpu->r[29], cpu->r[31], cpu->r[2], cpu->r[3], cpu->r[4], cpu->r[ 16 ], cpu->r[ 17 ]);
-//			psxcpu_verbose--;
-		}
 #endif
 		switch( INS_OP( cpu->op ) )
 		{
