@@ -81,10 +81,18 @@ MetaDataModel* DecoderPSFFactory::createMetaDataModel(const QString &path, bool 
     return new PSFMetaDataModel(path);
 }
 
+#if (QMMP_VERSION_INT < 0x10700) || (0x20000 <= QMMP_VERSION_INT && QMMP_VERSION_INT < 0x20200)
 void DecoderPSFFactory::showSettings(QWidget *parent)
 {
     Q_UNUSED(parent);
 }
+#else
+QDialog *DecoderPSFFactory::createSettings(QWidget *parent)
+{
+    Q_UNUSED(parent);
+    return nullptr;
+}
+#endif
 
 void DecoderPSFFactory::showAbout(QWidget *parent)
 {
