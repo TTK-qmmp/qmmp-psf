@@ -167,8 +167,7 @@ qint64 PSFHelper::read(unsigned char *data, qint64 maxSize)
                 continue;
             }
 
-            int n = maxSize / 4;
-            n = std::min<int>(m_remaining, n);
+            const int n = std::min<int>(m_remaining, maxSize / 4);
             memcpy(data, m_buffer, n * 4);
             if(m_remaining > n)
             {
