@@ -98,7 +98,8 @@ void DecoderPSFFactory::showAbout(QWidget *parent)
 {
     QMessageBox::about(parent, tr("About PSF Reader Plugin"),
                        tr("Qmmp PSF Reader Plugin") + "\n" +
-                       tr("Written by: Greedysky <greedysky@163.com>"));
+                       tr("Written by: Greedysky <greedysky@163.com>") + "\n" +
+                       tr("Based on the source code from the Audio Overload"));
 }
 
 QString DecoderPSFFactory::translation() const
