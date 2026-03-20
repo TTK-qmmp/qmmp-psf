@@ -41,19 +41,25 @@ Decoder *DecoderPSFFactory::create(const QString &path, QIODevice *input)
     return new DecoderPSF(path);
 }
 
-QList<TrackInfo*> DecoderPSFFactory::createPlayList(const QString &path, TrackInfo::Parts parts, QStringList *)
+TrackInfoList DecoderPSFFactory::createPlayList(const QString &path, TrackInfo::Parts parts, QStringList *)
 {
-    TrackInfo *info = new TrackInfo(path);
+#if QMMP_VERSION_INT < 0x20400
+    TrackInfo *raw(new TrackInfo(path)), *info = raw;
+#else
+    TrackInfo raw(path), info = &raw;
+#endif
     if(parts == TrackInfo::Parts())
     {
-        return QList<TrackInfo*>() << info;
+        return {raw};
     }
 
     PSFHelper helper(path);
     if(!helper.initialize())
     {
+#if QMMP_VERSION_INT < 0x20400
         delete info;
-        return QList<TrackInfo*>();
+#endif
+        return {};
     }
 
     if((parts & TrackInfo::MetaData) && helper.hasMetaData())
@@ -72,7 +78,8 @@ QList<TrackInfo*> DecoderPSFFactory::createPlayList(const QString &path, TrackIn
         info->setValue(Qmmp::FORMAT_NAME, "PlayStation 1/2 Audio");
         info->setDuration(helper.totalTime());
     }
-    return QList<TrackInfo*>() << info;
+
+    return {raw};
 }
 
 MetaDataModel* DecoderPSFFactory::createMetaDataModel(const QString &path, bool readOnly)
