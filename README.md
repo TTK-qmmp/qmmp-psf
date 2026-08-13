@@ -1,4 +1,4 @@
-This is a plugin for Qmmp (1.6.0 or greater) which supports PSF file.
+This is an inut plugin for Qmmp (1.6.0 or later) that supports PSF files.
 
 Based on [Audio Overload](https://github.com/sasq64/musicplayer) (Audio Overload module).
 
